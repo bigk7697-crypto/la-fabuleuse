@@ -1,0 +1,66 @@
+<svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background with gradient -->
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0a0a0a" />
+      <stop offset="50%" style="stop-color:#1a1a1a" />
+      <stop offset="100%" style="stop-color:#0a0a0a" />
+    </linearGradient>
+    <linearGradient id="goldGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#d4af37" />
+      <stop offset="30%" style="stop-color:#f4e4c1" />
+      <stop offset="70%" style="stop-color:#f4e4c1" />
+      <stop offset="100%" style="stop-color:#d4af37" />
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="shadow">
+      <feDropShadow dx="0" dy="4" stdDeviation="4" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+  
+  <!-- Main circle -->
+  <circle cx="60" cy="60" r="55" fill="url(#bgGradient)" stroke="url(#goldGradient)" stroke-width="2" filter="url(#shadow)"/>
+  
+  <!-- Inner decorative circle -->
+  <circle cx="60" cy="60" r="48" fill="none" stroke="url(#goldGradient)" stroke-width="0.5" opacity="0.5"/>
+  
+  <!-- LF monogram with modern design -->
+  <g filter="url(#glow)">
+    <!-- L -->
+    <path d="M30 30 L30 90 L38 90 L38 50 L48 50 L48 30 Z" fill="url(#goldGradient)"/>
+    
+    <!-- F -->
+    <path d="M55 30 L55 90 L63 90 L63 65 L75 65 L75 58 L63 58 L63 37 L82 37 L82 30 Z" fill="url(#goldGradient)"/>
+  </g>
+  
+  <!-- Decorative elements -->
+  <g opacity="0.6">
+    <!-- Top dots -->
+    <circle cx="35" cy="25" r="2" fill="#d4af37"/>
+    <circle cx="60" cy="20" r="2" fill="#d4af37"/>
+    <circle cx="85" cy="25" r="2" fill="#d4af37"/>
+    
+    <!-- Bottom dots -->
+    <circle cx="35" cy="95" r="2" fill="#d4af37"/>
+    <circle cx="60" cy="100" r="2" fill="#d4af37"/>
+    <circle cx="85" cy="95" r="2" fill="#d4af37"/>
+    
+    <!-- Side dots -->
+    <circle cx="25" cy="45" r="1.5" fill="#d4af37"/>
+    <circle cx="25" cy="60" r="1.5" fill="#d4af37"/>
+    <circle cx="25" cy="75" r="1.5" fill="#d4af37"/>
+    
+    <circle cx="95" cy="45" r="1.5" fill="#d4af37"/>
+    <circle cx="95" cy="60" r="1.5" fill="#d4af37"/>
+    <circle cx="95" cy="75" r="1.5" fill="#d4af37"/>
+  </g>
+  
+  <!-- Subtle ring -->
+  <circle cx="60" cy="60" r="58" fill="none" stroke="url(#goldGradient)" stroke-width="0.3" opacity="0.3"/>
+</svg>
