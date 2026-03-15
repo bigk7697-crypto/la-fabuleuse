@@ -1,0 +1,24 @@
+{
+  "name": "LA FABULEUSE - Bar Restaurant Café",
+  "short_name": "LA FABULEUSE",
+  "description": "Bar Restaurant Café à Lomé, Togo. Cuisine exceptionnelle et ambiance unique.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#d4af37",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/logo-la-fabuleuse.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logo-la-fabuleuse.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

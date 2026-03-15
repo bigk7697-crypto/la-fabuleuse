@@ -15,7 +15,7 @@ const Logo: React.FC<LogoProps> = ({ size = 'medium', className = '' }) => {
   return (
     <div className={`${sizeClasses[size]} ${className}`}>
       <img 
-        src="/favicon.svg" 
+        src="/logo-la-fabuleuse.png" 
         alt="LA FABULEUSE" 
         className="w-full h-full object-cover rounded-full"
       />

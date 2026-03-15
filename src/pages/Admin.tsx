@@ -2,11 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { auth, db, DEFAULT_CONFIG } from '../lib/firebase';
 import { useNavigate } from 'react-router-dom';
-import { collection, query, onSnapshot, addDoc, deleteDoc, doc, updateDoc, setDoc, getDoc } from 'firebase/firestore';
+import { collection, query, onSnapshot, addDoc, deleteDoc, doc, updateDoc, setDoc, getDoc, orderBy, limit, where, getDocs } from 'firebase/firestore';
 import { MenuItem, AppSettings } from '../types';
 import { 
   LogOut, Plus, Trash2, Edit2, Save, X, 
-  Settings as SettingsIcon, Utensils, LayoutDashboard, Phone, MapPin, Globe
+  Settings as SettingsIcon, Utensils, LayoutDashboard, Phone, MapPin, Globe,
+  TrendingUp, Users, ShoppingCart, Clock, Eye, EyeOff,
+  Download, Search, Filter, BarChart3, DollarSign,
+  Package, Star, Calendar, Bell, Menu as MenuIcon
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'react-hot-toast';
@@ -22,7 +25,7 @@ const Admin: React.FC = () => {
     facebookUrl: '',
     instagramUrl: ''
   });
-  const [activeTab, setActiveTab] = useState<'menu' | 'settings'>('menu');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'menu' | 'orders' | 'analytics' | 'settings'>('dashboard');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [formData, setFormData] = useState<Partial<MenuItem>>({
@@ -35,6 +38,16 @@ const Admin: React.FC = () => {
   });
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterCategory, setFilterCategory] = useState<string>('all');
+  const [orders, setOrders] = useState<any[]>([]);
+  const [stats, setStats] = useState({
+    totalRevenue: 0,
+    totalOrders: 0,
+    popularItems: [],
+    todayOrders: 0
+  });
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   const navigate = useNavigate();
 
@@ -53,6 +66,35 @@ const Admin: React.FC = () => {
       const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as MenuItem));
       setMenuItems(items);
     });
+
+    // Fetch orders for analytics
+    const fetchOrders = async () => {
+      try {
+        const ordersQuery = query(collection(db, 'orders'), orderBy('createdAt', 'desc'), limit(50));
+        const ordersSnapshot = await getDocs(ordersQuery);
+        const ordersData = ordersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setOrders(ordersData);
+        
+        // Calculate stats
+        const totalRevenue = ordersData.reduce((sum, order) => sum + (order.total || 0), 0);
+        const todayOrders = ordersData.filter(order => {
+          const orderDate = order.createdAt?.toDate();
+          const today = new Date();
+          return orderDate?.toDateString() === today.toDateString();
+        }).length;
+
+        setStats({
+          totalRevenue,
+          totalOrders: ordersData.length,
+          popularItems: [], // TODO: Calculate popular items
+          todayOrders
+        });
+      } catch (error) {
+        console.error("Orders fetch error:", error);
+      }
+    };
+
+    fetchOrders();
 
     const fetchSettings = async () => {
       try {
@@ -182,6 +224,47 @@ const Admin: React.FC = () => {
     }
   };
 
+  const handleToggleAvailable = async (id: string, available: boolean) => {
+    try {
+      await updateDoc(doc(db, 'menu', id), { available });
+      toast.success(`Plat ${available ? 'activé' : 'désactivé'}`);
+    } catch (error: any) {
+      toast.error('Erreur : ' + error.message);
+    }
+  };
+
+  const handleExportData = async () => {
+    try {
+      const data = {
+        menu: menuItems,
+        settings: settings,
+        orders: orders,
+        exportDate: new Date().toISOString()
+      };
+      
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `la-fabuleuse-data-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      toast.success('Données exportées avec succès');
+    } catch (error) {
+      toast.error('Erreur lors de l\'export');
+    }
+  };
+
+  const filteredMenuItems = menuItems.filter(item => {
+    const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         item.description.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = filterCategory === 'all' || item.category === filterCategory;
+    return matchesSearch && matchesCategory;
+  });
+
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -193,46 +276,90 @@ const Admin: React.FC = () => {
   };
 
   if (loading) return (
-    <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
-      <div className="w-12 h-12 border-4 border-[#d4af37] border-t-transparent rounded-full animate-spin"></div>
+    <div className="min-h-screen bg-gradient-to-br from-[#0a0a0a] to-[#1a1a1a] flex items-center justify-center">
+      <div className="text-center">
+        <div className="w-16 h-16 border-4 border-[#d4af37] border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p className="text-white text-lg">Chargement de l'interface admin...</p>
+      </div>
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white flex">
+    <div className="min-h-screen bg-gradient-to-br from-[#0a0a0a] to-[#1a1a1a] text-white flex">
+      {/* Mobile Menu Toggle */}
+      <button
+        onClick={() => setSidebarOpen(!sidebarOpen)}
+        className="lg:hidden fixed top-4 left-4 z-50 p-3 bg-[#d4af37] text-black rounded-xl"
+      >
+        <MenuIcon size={24} />
+      </button>
+
       {/* Sidebar */}
-      <aside className="w-64 bg-[#141414] border-r border-white/5 flex flex-col">
-        <div className="p-8">
+      <aside className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 fixed lg:static inset-y-0 left-0 z-40 w-72 bg-gradient-to-b from-[#1a1a1a] to-[#141414] border-r border-white/10 flex flex-col transition-transform duration-300`}>
+        <div className="p-8 border-b border-white/5">
           <div className="flex items-center gap-3 mb-8">
-            <div className="w-8 h-8 bg-[#d4af37] rounded-lg flex items-center justify-center">
-              <LayoutDashboard className="text-black" size={18} />
+            <div className="w-10 h-10 bg-[#d4af37] rounded-xl flex items-center justify-center shadow-lg">
+              <LayoutDashboard className="text-black" size={20} />
             </div>
-            <span className="font-bold tracking-tight">ADMIN PANEL</span>
+            <div>
+              <span className="font-bold text-xl tracking-tight text-white">ADMIN</span>
+              <span className="text-xs text-[#d4af37] block">LA FABULEUSE</span>
+            </div>
           </div>
 
-          <nav className="space-y-2">
+          <nav className="space-y-3">
             <button
-              onClick={() => setActiveTab('menu')}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-                activeTab === 'menu' ? 'bg-[#d4af37] text-black font-bold' : 'text-gray-400 hover:bg-white/5'
+              onClick={() => setActiveTab('dashboard')}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all group ${
+                activeTab === 'dashboard' ? 'bg-[#d4af37] text-black font-bold shadow-lg' : 'text-gray-400 hover:bg-white/10'
               }`}
             >
-              <Utensils size={20} />
-              Menu
+              <BarChart3 size={20} className={activeTab === 'dashboard' ? 'text-black' : 'text-gray-400'} />
+              <span className="flex-1 text-left">Tableau de bord</span>
+              {activeTab === 'dashboard' && <div className="w-2 h-2 bg-black rounded-full"></div>}
+            </button>
+            <button
+              onClick={() => setActiveTab('menu')}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all group ${
+                activeTab === 'menu' ? 'bg-[#d4af37] text-black font-bold shadow-lg' : 'text-gray-400 hover:bg-white/10'
+              }`}
+            >
+              <Utensils size={20} className={activeTab === 'menu' ? 'text-black' : 'text-gray-400'} />
+              <span className="flex-1 text-left">Menu</span>
+              <span className="bg-white/20 px-2 py-1 rounded-lg text-xs">{menuItems.length}</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('orders')}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all group ${
+                activeTab === 'orders' ? 'bg-[#d4af37] text-black font-bold shadow-lg' : 'text-gray-400 hover:bg-white/10'
+              }`}
+            >
+              <ShoppingCart size={20} className={activeTab === 'orders' ? 'text-black' : 'text-gray-400'} />
+              <span className="flex-1 text-left">Commandes</span>
+              <span className="bg-white/20 px-2 py-1 rounded-lg text-xs">{orders.length}</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('analytics')}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all group ${
+                activeTab === 'analytics' ? 'bg-[#d4af37] text-black font-bold shadow-lg' : 'text-gray-400 hover:bg-white/10'
+              }`}
+            >
+              <TrendingUp size={20} className={activeTab === 'analytics' ? 'text-black' : 'text-gray-400'} />
+              <span className="flex-1 text-left">Statistiques</span>
             </button>
             <button
               onClick={() => setActiveTab('settings')}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-                activeTab === 'settings' ? 'bg-[#d4af37] text-black font-bold' : 'text-gray-400 hover:bg-white/5'
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all group ${
+                activeTab === 'settings' ? 'bg-[#d4af37] text-black font-bold shadow-lg' : 'text-gray-400 hover:bg-white/10'
               }`}
             >
-              <SettingsIcon size={20} />
-              Paramètres
+              <SettingsIcon size={20} className={activeTab === 'settings' ? 'text-black' : 'text-gray-400'} />
+              <span className="flex-1 text-left">Paramètres</span>
             </button>
           </nav>
         </div>
 
-        <div className="mt-auto p-8">
+        <div className="mt-auto p-8 border-t border-white/5">
           <button
             onClick={handleLogout}
             className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-500 hover:bg-red-500/10 transition-all"
