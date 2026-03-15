@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - LA FABULEUSE</title>
+    
+    <!-- Favicon correct -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="apple-touch-icon" href="/apple-touch-icon-new.svg">
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <style>
+        * { box-sizing: border-box; }
+        body { 
+            background: #0a0a0a; 
+            color: white; 
+            font-family: Inter, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        .btn-primary {
+            background: #d4af37;
+            color: black;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .btn-primary:hover {
+            background: #b8941f;
+            transform: translateY(-2px);
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 1000;
+        }
+        .modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .form-input {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            color: white;
+            padding: 12px;
+            border-radius: 8px;
+            width: 100%;
+        }
+        .form-input:focus {
+            outline: none;
+            border-color: #d4af37;
+        }
+        .sidebar-btn {
+            width: 100%;
+            text-align: left;
+            padding: 12px 16px;
+            background: transparent;
+            color: #999;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .sidebar-btn:hover, .sidebar-btn.active {
+            background: #d4af37;
+            color: black;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <!-- Loading -->
+        <div id="loading" class="min-h-screen flex items-center justify-center">
+            <div class="w-12 h-12 border-4 border-[#d4af37] border-t-transparent rounded-full animate-spin"></div>
+        </div>
+
+        <!-- Main App (hidden initially) -->
+        <div id="mainApp" class="min-h-screen flex hidden">
+            <!-- Sidebar -->
+            <aside class="w-64 bg-[#141414] border-r border-white/5 flex flex-col">
+                <div class="p-6">
+                    <div class="flex items-center gap-3 mb-8">
+                        <div class="w-8 h-8 bg-[#d4af37] rounded-lg flex items-center justify-center">
+                            <span class="text-black font-bold">A</span>
+                        </div>
+                        <span class="font-bold tracking-tight">ADMIN PANEL</span>
+                    </div>
+
+                    <nav class="space-y-2">
+                        <button onclick="showSection('menu')" class="sidebar-btn active" id="menuBtn">
+                            🍽️ Menu
+                        </button>
+                        <button onclick="showSection('settings')" class="sidebar-btn" id="settingsBtn">
+                            ⚙️ Paramètres
+                        </button>
+                    </nav>
+                </div>
+
+                <div class="mt-auto p-6">
+                    <button onclick="logout()" class="w-full sidebar-btn text-red-500 hover:bg-red-500/10">
+                        🚪 Déconnexion
+                    </button>
+                </div>
+            </aside>
+
+            <!-- Main Content -->
+            <main class="flex-1 p-8 overflow-y-auto">
+                <!-- Menu Section -->
+                <section id="menuSection" class="space-y-6">
+                    <div class="flex justify-between items-center">
+                        <h1 class="text-3xl font-bold">Gestion du Menu</h1>
+                        <button onclick="openAddModal()" class="btn-primary">
+                            ➕ Ajouter un plat
+                        </button>
+                    </div>
+
+                    <div id="menuList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <!-- Menu items will be loaded here -->
+                    </div>
+                </section>
+
+                <!-- Settings Section -->
+                <section id="settingsSection" class="space-y-6 hidden">
+                    <h1 class="text-3xl font-bold">Paramètres du Restaurant</h1>
+                    
+                    <form onsubmit="saveSettings(event)" class="max-w-2xl space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Numéro WhatsApp</label>
+                            <input type="tel" id="whatsappNumber" class="form-input" required>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Adresse</label>
+                            <input type="text" id="address" class="form-input" required>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Facebook URL</label>
+                            <input type="url" id="facebookUrl" class="form-input">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Instagram URL</label>
+                            <input type="url" id="instagramUrl" class="form-input">
+                        </div>
+                        <button type="submit" class="btn-primary">
+                            💾 Sauvegarder
+                        </button>
+                    </form>
+                </section>
+            </main>
+        </div>
+
+        <!-- Add/Edit Modal -->
+        <div id="itemModal" class="modal">
+            <div class="bg-[#1a1a1a] rounded-xl p-8 max-w-2xl w-full mx-4">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 id="modalTitle" class="text-2xl font-bold">Ajouter un plat</h2>
+                    <button onclick="closeModal()" class="text-gray-400 hover:text-white text-2xl">×</button>
+                </div>
+
+                <form onsubmit="saveMenuItem(event)" class="space-y-4">
+                    <input type="hidden" id="itemId">
+                    
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Nom du plat *</label>
+                        <input type="text" id="itemName" class="form-input" required>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Description *</label>
+                        <textarea id="itemDescription" class="form-input" rows="3" required></textarea>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Prix (FCFA) *</label>
+                        <input type="number" id="itemPrice" class="form-input" min="0" required>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Catégorie *</label>
+                        <select id="itemCategory" class="form-input" required>
+                            <option value="restaurant">Restaurant</option>
+                            <option value="bar">Bar</option>
+                            <option value="cafe">Café</option>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium mb-2">URL de l'image *</label>
+                        <input type="url" id="itemImage" class="form-input" placeholder="https://example.com/image.jpg" required>
+                    </div>
+                    
+                    <div class="flex gap-4">
+                        <button type="submit" class="btn-primary flex-1">
+                            💾 Sauvegarder
+                        </button>
+                        <button type="button" onclick="closeModal()" class="btn-primary bg-gray-600 hover:bg-gray-700 flex-1">
+                            Annuler
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Toast Notification -->
+        <div id="toast" class="fixed bottom-4 right-4 bg-green-600 text-white px-6 py-3 rounded-lg hidden transition-all">
+            <span id="toastMessage"></span>
+        </div>
+    </div>
+
+    <script>
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyDRkDvEANAlnR6mIy5873IW9JjWoC4G7Kk",
+            authDomain: "la-fabuleuse-tg-669c0.firebaseapp.com",
+            projectId: "la-fabuleuse-tg-669c0",
+            storageBucket: "la-fabuleuse-tg-669c0.firebasestorage.app",
+            messagingSenderId: "190970983644",
+            appId: "1:190970983644:web:1999ec77d9d7f09063b019"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const auth = firebase.auth();
+
+        // Global State
+        let currentUser = null;
+        let menuItems = [];
+        let settings = {
+            whatsappNumber: '+259192719945977',
+            address: 'Lomé, Togo',
+            facebookUrl: '',
+            instagramUrl: ''
+        };
+
+        // Initialize App
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 Démarrage de l\'app admin...');
+            initApp();
+        });
+
+        function initApp() {
+            auth.onAuthStateChanged(function(user) {
+                console.log('🔍 État auth:', user ? 'connecté' : 'non connecté');
+                
+                if (user) {
+                    currentUser = user;
+                    console.log('✅ Utilisateur connecté:', user.email);
+                    showMainApp();
+                    loadData();
+                } else {
+                    console.log('❌ Non connecté, redirection...');
+                    window.location.href = '/login.html';
+                }
+            });
+        }
+
+        function showMainApp() {
+            document.getElementById('loading').classList.add('hidden');
+            document.getElementById('mainApp').classList.remove('hidden');
+        }
+
+        function loadData() {
+            loadMenuItems();
+            loadSettings();
+        }
+
+        function loadMenuItems() {
+            console.log('📦 Chargement des menu items...');
+            db.collection('menu').onSnapshot(function(snapshot) {
+                menuItems = [];
+                snapshot.forEach(function(doc) {
+                    menuItems.push({ id: doc.id, ...doc.data() });
+                });
+                console.log('✅ Menu items chargés:', menuItems.length);
+                renderMenuItems();
+            }, function(error) {
+                console.error('❌ Erreur chargement menu:', error);
+                showToast('Erreur de chargement du menu', 'error');
+            });
+        }
+
+        function renderMenuItems() {
+            const container = document.getElementById('menuList');
+            
+            if (menuItems.length === 0) {
+                container.innerHTML = '<div class="col-span-full text-center text-gray-400 py-8">Aucun plat dans le menu</div>';
+                return;
+            }
+
+            container.innerHTML = menuItems.map(item => `
+                <div class="bg-[#1a1a1a] rounded-xl p-6 border border-white/10">
+                    <img src="${item.image || '/images/placeholder.jpg'}" alt="${item.name}" class="w-full h-48 object-cover rounded-lg mb-4">
+                    <h3 class="text-xl font-bold mb-2">${item.name}</h3>
+                    <p class="text-gray-400 mb-4">${item.description}</p>
+                    <div class="flex justify-between items-center">
+                        <span class="text-2xl font-bold text-[#d4af37]">${item.price} FCFA</span>
+                        <div class="flex gap-2">
+                            <button onclick="editItem('${item.id}')" class="btn-primary bg-blue-600 hover:bg-blue-700 px-3 py-1 text-sm">
+                                ✏️
+                            </button>
+                            <button onclick="deleteItem('${item.id}')" class="btn-primary bg-red-600 hover:bg-red-700 px-3 py-1 text-sm">
+                                🗑️
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function loadSettings() {
+            console.log('⚙️ Chargement des paramètres...');
+            db.collection('settings').doc('general').get().then(function(doc) {
+                if (doc.exists) {
+                    settings = { ...settings, ...doc.data() };
+                    console.log('✅ Paramètres chargés:', settings);
+                    updateSettingsForm();
+                }
+            }).catch(function(error) {
+                console.error('❌ Erreur chargement paramètres:', error);
+            });
+        }
+
+        function updateSettingsForm() {
+            document.getElementById('whatsappNumber').value = settings.whatsappNumber || '';
+            document.getElementById('address').value = settings.address || '';
+            document.getElementById('facebookUrl').value = settings.facebookUrl || '';
+            document.getElementById('instagramUrl').value = settings.instagramUrl || '';
+        }
+
+        function showSection(section) {
+            // Hide all sections
+            document.getElementById('menuSection').classList.add('hidden');
+            document.getElementById('settingsSection').classList.add('hidden');
+            
+            // Remove active class from all buttons
+            document.getElementById('menuBtn').classList.remove('active');
+            document.getElementById('settingsBtn').classList.remove('active');
+            
+            // Show selected section
+            document.getElementById(section + 'Section').classList.remove('hidden');
+            document.getElementById(section + 'Btn').classList.add('active');
+        }
+
+        function openAddModal() {
+            document.getElementById('modalTitle').textContent = 'Ajouter un plat';
+            document.getElementById('itemId').value = '';
+            document.getElementById('itemName').value = '';
+            document.getElementById('itemDescription').value = '';
+            document.getElementById('itemPrice').value = '';
+            document.getElementById('itemCategory').value = 'restaurant';
+            document.getElementById('itemImage').value = '';
+            document.getElementById('itemModal').classList.add('active');
+        }
+
+        function editItem(id) {
+            const item = menuItems.find(i => i.id === id);
+            if (item) {
+                document.getElementById('modalTitle').textContent = 'Modifier le plat';
+                document.getElementById('itemId').value = item.id;
+                document.getElementById('itemName').value = item.name;
+                document.getElementById('itemDescription').value = item.description;
+                document.getElementById('itemPrice').value = item.price;
+                document.getElementById('itemCategory').value = item.category;
+                document.getElementById('itemImage').value = item.image;
+                document.getElementById('itemModal').classList.add('active');
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('itemModal').classList.remove('active');
+        }
+
+        async function saveMenuItem(event) {
+            event.preventDefault();
+            
+            const itemId = document.getElementById('itemId').value;
+            const itemData = {
+                name: document.getElementById('itemName').value.trim(),
+                description: document.getElementById('itemDescription').value.trim(),
+                price: parseInt(document.getElementById('itemPrice').value),
+                category: document.getElementById('itemCategory').value,
+                image: document.getElementById('itemImage').value.trim(),
+                available: true,
+                updatedAt: new Date()
+            };
+
+            console.log('💾 Sauvegarde du plat:', itemData);
+
+            try {
+                if (itemId) {
+                    await db.collection('menu').doc(itemId).update(itemData);
+                    showToast('Plat mis à jour avec succès', 'success');
+                } else {
+                    itemData.createdAt = new Date();
+                    await db.collection('menu').add(itemData);
+                    showToast('Plat ajouté avec succès', 'success');
+                }
+                closeModal();
+            } catch (error) {
+                console.error('❌ Erreur sauvegarde plat:', error);
+                showToast('Erreur lors de la sauvegarde: ' + error.message, 'error');
+            }
+        }
+
+        async function deleteItem(id) {
+            if (confirm('Êtes-vous sûr de vouloir supprimer ce plat ?')) {
+                try {
+                    await db.collection('menu').doc(id).delete();
+                    showToast('Plat supprimé avec succès', 'success');
+                } catch (error) {
+                    console.error('❌ Erreur suppression plat:', error);
+                    showToast('Erreur lors de la suppression', 'error');
+                }
+            }
+        }
+
+        async function saveSettings(event) {
+            event.preventDefault();
+            
+            const settingsData = {
+                whatsappNumber: document.getElementById('whatsappNumber').value,
+                address: document.getElementById('address').value,
+                facebookUrl: document.getElementById('facebookUrl').value,
+                instagramUrl: document.getElementById('instagramUrl').value,
+                updatedAt: new Date()
+            };
+
+            console.log('💾 Sauvegarde des paramètres:', settingsData);
+
+            try {
+                await db.collection('settings').doc('general').set(settingsData, { merge: true });
+                showToast('Paramètres sauvegardés avec succès', 'success');
+            } catch (error) {
+                console.error('❌ Erreur sauvegarde paramètres:', error);
+                showToast('Erreur lors de la sauvegarde: ' + error.message, 'error');
+            }
+        }
+
+        async function logout() {
+            try {
+                await auth.signOut();
+                showToast('Déconnexion réussie', 'success');
+                window.location.href = '/login.html';
+            } catch (error) {
+                console.error('❌ Erreur déconnexion:', error);
+                showToast('Erreur lors de la déconnexion', 'error');
+            }
+        }
+
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            const toastMessage = document.getElementById('toastMessage');
+            
+            toastMessage.textContent = message;
+            toast.className = `fixed bottom-4 right-4 px-6 py-3 rounded-lg transition-all ${
+                type === 'success' ? 'bg-green-600' : 'bg-red-600'
+            } text-white`;
+            
+            setTimeout(() => {
+                toast.classList.add('hidden');
+            }, 3000);
+            
+            toast.classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>
