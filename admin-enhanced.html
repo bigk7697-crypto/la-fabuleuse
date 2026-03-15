@@ -1172,14 +1172,38 @@
         };
         
         try {
-          await db.collection('settings').doc('restaurant').set({
-            ...settings,
-            ...restaurantSettings
-          });
+          // Test de connexion Firestore
+          console.log('🔥 Test connexion Firestore...');
+          const testDoc = await db.collection('settings').doc('restaurant').get();
+          console.log('🔥 Connexion Firestore OK:', testDoc.exists);
+          
+          // Sauvegarde avec merge pour ne pas écraser les autres champs
+          await db.collection('settings').doc('restaurant').set(restaurantSettings, { merge: true });
+          
+          // Mettre à jour l'état local
+          settings = { ...settings, ...restaurantSettings };
+          
+          console.log('✅ Paramètres restaurant sauvegardés:', restaurantSettings);
           showToast('Informations du restaurant sauvegardées', 'success');
         } catch (error) {
-          console.error('Error saving restaurant settings:', error);
-          showToast('Erreur lors de la sauvegarde', 'error');
+          console.error('❌ Erreur détaillée sauvegarde restaurant:', error);
+          console.error('❌ Code erreur:', error.code);
+          console.error('❌ Message erreur:', error.message);
+          
+          // Message d'erreur spécifique
+          let errorMessage = 'Erreur lors de la sauvegarde';
+          
+          if (error.code === 'permission-denied') {
+            errorMessage = 'Permission refusée - Vérifiez les règles Firestore';
+          } else if (error.code === 'unavailable') {
+            errorMessage = 'Service Firebase indisponible - Réessayez plus tard';
+          } else if (error.code === 'deadline-exceeded') {
+            errorMessage = 'Délai d\'attente dépassé - Réessayez';
+          } else if (error.message && error.message.includes('network')) {
+            errorMessage = 'Erreur réseau - Vérifiez votre connexion';
+          }
+          
+          showToast(errorMessage, 'error');
         }
       }
 
@@ -1194,14 +1218,38 @@
         };
         
         try {
-          await db.collection('settings').doc('restaurant').set({
-            ...settings,
-            ...socialSettings
-          });
+          // Test de connexion Firestore
+          console.log('🔥 Test connexion Firestore pour réseaux sociaux...');
+          const testDoc = await db.collection('settings').doc('restaurant').get();
+          console.log('🔥 Connexion Firestore OK:', testDoc.exists);
+          
+          // Sauvegarde avec merge pour ne pas écraser les autres champs
+          await db.collection('settings').doc('restaurant').set(socialSettings, { merge: true });
+          
+          // Mettre à jour l'état local
+          settings = { ...settings, ...socialSettings };
+          
+          console.log('✅ Paramètres réseaux sociaux sauvegardés:', socialSettings);
           showToast('Réseaux sociaux sauvegardés', 'success');
         } catch (error) {
-          console.error('Error saving social media settings:', error);
-          showToast('Erreur lors de la sauvegarde', 'error');
+          console.error('❌ Erreur détaillée sauvegarde réseaux sociaux:', error);
+          console.error('❌ Code erreur:', error.code);
+          console.error('❌ Message erreur:', error.message);
+          
+          // Message d'erreur spécifique
+          let errorMessage = 'Erreur lors de la sauvegarde';
+          
+          if (error.code === 'permission-denied') {
+            errorMessage = 'Permission refusée - Vérifiez les règles Firestore';
+          } else if (error.code === 'unavailable') {
+            errorMessage = 'Service Firebase indisponible - Réessayez plus tard';
+          } else if (error.code === 'deadline-exceeded') {
+            errorMessage = 'Délai d\'attente dépassé - Réessayez';
+          } else if (error.message && error.message.includes('network')) {
+            errorMessage = 'Erreur réseau - Vérifiez votre connexion';
+          }
+          
+          showToast(errorMessage, 'error');
         }
       }
 
