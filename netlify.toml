@@ -12,7 +12,7 @@
 
 [[redirects]]
   from = "/login"
-  to = "/login-new.html"
+  to = "/login.html"
   status = 200
 
 [[redirects]]

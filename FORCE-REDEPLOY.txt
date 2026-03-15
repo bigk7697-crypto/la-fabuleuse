@@ -1,0 +1,11 @@
+# FORCE REDEPLOY - $(date)
+
+This file forces Netlify to rebuild and deploy all changes.
+
+## Changes Included:
+- Removed duplicate HTML files (admin-enhanced.html, login.html)
+- Renamed login-new.html to login.html
+- Updated Netlify redirects
+- Fixed favicon references
+
+## Deployment should be live after this commit.
