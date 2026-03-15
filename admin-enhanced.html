@@ -641,8 +641,63 @@
                   </select>
                 </div>
                 <div>
-                  <label class="block text-sm font-medium text-gray-400 mb-2">Image URL</label>
-                  <input type="url" id="itemImage" class="input-premium w-full" placeholder="/images/placeholder-plat.jpg">
+                  <label class="block text-sm font-medium text-gray-400 mb-2">Image du plat</label>
+                  <div class="space-y-3">
+                    <!-- Upload Area -->
+                    <div id="imageUploadArea" class="border-2 border-dashed border-gray-600 rounded-xl p-6 text-center hover:border-[#d4af37] transition-colors cursor-pointer">
+                      <input type="file" id="imageFileInput" accept="image/*" class="hidden">
+                      <div id="uploadPlaceholder">
+                        <svg class="w-12 h-12 mx-auto mb-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                        </svg>
+                        <p class="text-gray-400 text-sm">Cliquez pour télécharger une image</p>
+                        <p class="text-gray-500 text-xs">ou glissez-déposez ici</p>
+                      </div>
+                      <div id="imagePreview" class="hidden">
+                        <img id="previewImg" class="w-full h-48 object-cover rounded-lg mb-3">
+                        <div class="flex justify-between items-center">
+                          <p class="text-sm text-gray-400" id="fileName"></p>
+                          <button type="button" onclick="removeImage()" class="text-red-400 hover:text-red-300 text-sm">
+                            Supprimer
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <!-- Cropper Modal -->
+                    <div id="cropperModal" class="hidden fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                      <div class="bg-[#1a1a1a] rounded-2xl p-6 max-w-4xl w-full max-h-[90vh] overflow-auto">
+                        <div class="flex justify-between items-center mb-4">
+                          <h3 class="text-xl font-bold text-gradient">Cadrer l'image</h3>
+                          <button onclick="closeCropper()" class="text-gray-400 hover:text-white">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                          </button>
+                        </div>
+                        
+                        <div class="relative mb-4">
+                          <canvas id="cropperCanvas" class="max-w-full mx-auto"></canvas>
+                          <div id="cropBox" class="absolute border-2 border-[#d4af37] cursor-move"></div>
+                        </div>
+                        
+                        <div class="flex gap-4 justify-center">
+                          <button onclick="rotateImage(-90)" class="bg-gray-700 text-white px-4 py-2 rounded-lg hover:bg-gray-600">
+                            ↺ Rotation
+                          </button>
+                          <button onclick="resetCrop()" class="bg-gray-700 text-white px-4 py-2 rounded-lg hover:bg-gray-600">
+                            Réinitialiser
+                          </button>
+                          <button onclick="applyCrop()" class="btn-premium">
+                            <span>Appliquer le cadrage</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <!-- Hidden URL input for fallback -->
+                    <input type="url" id="itemImage" class="input-premium w-full hidden" placeholder="URL de l'image (optionnel)">
+                  </div>
                 </div>
               </div>
               
@@ -701,6 +756,21 @@
       };
       let currentEditingItem = null;
       let currentSection = 'dashboard';
+      
+      // Image Upload State
+      let uploadedImage = null;
+      let croppedImageData = null;
+      let cropperState = {
+        image: null,
+        rotation: 0,
+        cropX: 0,
+        cropY: 0,
+        cropWidth: 200,
+        cropHeight: 200,
+        isDragging: false,
+        dragStartX: 0,
+        dragStartY: 0
+      };
 
       // DOM Elements
       const loadingScreen = document.getElementById('loadingScreen');
@@ -742,6 +812,9 @@
         // Settings forms
         document.getElementById('restaurantInfoForm')?.addEventListener('submit', handleRestaurantSettings);
         document.getElementById('socialMediaForm')?.addEventListener('submit', handleSocialMediaSettings);
+        
+        // Image upload
+        setupImageUpload();
       }
 
       function checkAuthState() {
@@ -1002,6 +1075,7 @@
         document.getElementById('modalTitle').textContent = 'Ajouter un plat';
         document.getElementById('submitBtnText').textContent = 'Ajouter au menu';
         menuForm.reset();
+        resetImageUpload();
         menuModal.classList.remove('hidden');
       }
 
@@ -1016,6 +1090,14 @@
           document.getElementById('itemCategory').value = currentEditingItem.category;
           document.getElementById('itemImage').value = currentEditingItem.image || '';
           document.getElementById('itemAvailable').checked = currentEditingItem.available;
+          
+          // Load existing image
+          if (currentEditingItem.image) {
+            loadImageFromUrl(currentEditingItem.image);
+          } else {
+            resetImageUpload();
+          }
+          
           menuModal.classList.remove('hidden');
         }
       }
@@ -1024,17 +1106,26 @@
         menuModal.classList.add('hidden');
         menuForm.reset();
         currentEditingItem = null;
+        resetImageUpload();
       }
 
       async function handleMenuSubmit(e) {
         e.preventDefault();
+        
+        // Get image data
+        let imageData = document.getElementById('itemImage').value.trim();
+        if (croppedImageData) {
+          imageData = croppedImageData;
+        } else if (!imageData) {
+          imageData = '/images/placeholder-plat.jpg';
+        }
         
         const menuItem = {
           name: document.getElementById('itemName').value.trim(),
           description: document.getElementById('itemDescription').value.trim(),
           price: parseInt(document.getElementById('itemPrice').value),
           category: document.getElementById('itemCategory').value,
-          image: document.getElementById('itemImage').value.trim() || '/images/placeholder-plat.jpg',
+          image: imageData,
           available: document.getElementById('itemAvailable').checked,
           updatedAt: new Date()
         };
@@ -1275,6 +1366,290 @@
         setTimeout(() => {
           toast.remove();
         }, 3000);
+      }
+      
+      // Image Upload Functions
+      function setupImageUpload() {
+        const uploadArea = document.getElementById('imageUploadArea');
+        const fileInput = document.getElementById('imageFileInput');
+        
+        if (!uploadArea || !fileInput) return;
+        
+        // Click to upload
+        uploadArea.addEventListener('click', () => {
+          fileInput.click();
+        });
+        
+        // Drag and drop
+        uploadArea.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          uploadArea.classList.add('border-[#d4af37]', 'bg-[#d4af37]/10');
+        });
+        
+        uploadArea.addEventListener('dragleave', () => {
+          uploadArea.classList.remove('border-[#d4af37]', 'bg-[#d4af37]/10');
+        });
+        
+        uploadArea.addEventListener('drop', (e) => {
+          e.preventDefault();
+          uploadArea.classList.remove('border-[#d4af37]', 'bg-[#d4af37]/10');
+          
+          const files = e.dataTransfer.files;
+          if (files.length > 0) {
+            handleImageFile(files[0]);
+          }
+        });
+        
+        // File input change
+        fileInput.addEventListener('change', (e) => {
+          if (e.target.files.length > 0) {
+            handleImageFile(e.target.files[0]);
+          }
+        });
+      }
+      
+      function handleImageFile(file) {
+        if (!file.type.startsWith('image/')) {
+          showToast('Veuillez sélectionner une image valide', 'error');
+          return;
+        }
+        
+        if (file.size > 5 * 1024 * 1024) { // 5MB limit
+          showToast('L\'image ne doit pas dépasser 5MB', 'error');
+          return;
+        }
+        
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          uploadedImage = e.target.result;
+          showImagePreview(file.name, uploadedImage);
+          openCropper();
+        };
+        reader.readAsDataURL(file);
+      }
+      
+      function showImagePreview(fileName, imageData) {
+        const placeholder = document.getElementById('uploadPlaceholder');
+        const preview = document.getElementById('imagePreview');
+        const previewImg = document.getElementById('previewImg');
+        const fileNameEl = document.getElementById('fileName');
+        
+        if (placeholder && preview && previewImg && fileNameEl) {
+          placeholder.classList.add('hidden');
+          preview.classList.remove('hidden');
+          previewImg.src = imageData;
+          fileNameEl.textContent = fileName;
+        }
+      }
+      
+      function removeImage() {
+        resetImageUpload();
+      }
+      
+      function resetImageUpload() {
+        uploadedImage = null;
+        croppedImageData = null;
+        
+        const placeholder = document.getElementById('uploadPlaceholder');
+        const preview = document.getElementById('imagePreview');
+        const fileInput = document.getElementById('imageFileInput');
+        const imageInput = document.getElementById('itemImage');
+        
+        if (placeholder) placeholder.classList.remove('hidden');
+        if (preview) preview.classList.add('hidden');
+        if (fileInput) fileInput.value = '';
+        if (imageInput) imageInput.value = '';
+      }
+      
+      function loadImageFromUrl(url) {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => {
+          uploadedImage = url;
+          showImagePreview('Image existante', url);
+        };
+        img.onerror = () => {
+          console.warn('Could not load image from URL:', url);
+          resetImageUpload();
+        };
+        img.src = url;
+      }
+      
+      // Cropper Functions
+      function openCropper() {
+        if (!uploadedImage) return;
+        
+        const modal = document.getElementById('cropperModal');
+        const canvas = document.getElementById('cropperCanvas');
+        const cropBox = document.getElementById('cropBox');
+        
+        if (!modal || !canvas || !cropBox) return;
+        
+        modal.classList.remove('hidden');
+        
+        const img = new Image();
+        img.onload = () => {
+          cropperState.image = img;
+          cropperState.rotation = 0;
+          initializeCropper();
+        };
+        img.src = uploadedImage;
+      }
+      
+      function initializeCropper() {
+        const canvas = document.getElementById('cropperCanvas');
+        const cropBox = document.getElementById('cropBox');
+        if (!canvas || !cropBox || !cropperState.image) return;
+        
+        const ctx = canvas.getContext('2d');
+        const maxWidth = 800;
+        const maxHeight = 600;
+        
+        let width = cropperState.image.width;
+        let height = cropperState.image.height;
+        
+        // Scale image to fit canvas
+        if (width > maxWidth || height > maxHeight) {
+          const ratio = Math.min(maxWidth / width, maxHeight / height);
+          width *= ratio;
+          height *= ratio;
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        
+        // Draw image
+        ctx.save();
+        ctx.translate(width / 2, height / 2);
+        ctx.rotate(cropperState.rotation * Math.PI / 180);
+        ctx.drawImage(cropperState.image, -width / 2, -height / 2, width, height);
+        ctx.restore();
+        
+        // Initialize crop box
+        const cropSize = Math.min(width, height) * 0.8;
+        cropperState.cropX = (width - cropSize) / 2;
+        cropperState.cropY = (height - cropSize) / 2;
+        cropperState.cropWidth = cropSize;
+        cropperState.cropHeight = cropSize;
+        
+        updateCropBox();
+        setupCropperEvents();
+      }
+      
+      function updateCropBox() {
+        const cropBox = document.getElementById('cropBox');
+        if (!cropBox) return;
+        
+        cropBox.style.left = cropperState.cropX + 'px';
+        cropBox.style.top = cropperState.cropY + 'px';
+        cropBox.style.width = cropperState.cropWidth + 'px';
+        cropBox.style.height = cropperState.cropHeight + 'px';
+      }
+      
+      function setupCropperEvents() {
+        const cropBox = document.getElementById('cropBox');
+        if (!cropBox) return;
+        
+        cropBox.addEventListener('mousedown', startDragging);
+        document.addEventListener('mousemove', drag);
+        document.addEventListener('mouseup', stopDragging);
+        
+        // Touch events for mobile
+        cropBox.addEventListener('touchstart', (e) => {
+          const touch = e.touches[0];
+          startDragging({ clientX: touch.clientX, clientY: touch.clientY });
+        });
+        
+        document.addEventListener('touchmove', (e) => {
+          if (cropperState.isDragging) {
+            const touch = e.touches[0];
+            drag({ clientX: touch.clientX, clientY: touch.clientY });
+          }
+        });
+        
+        document.addEventListener('touchend', stopDragging);
+      }
+      
+      function startDragging(e) {
+        cropperState.isDragging = true;
+        cropperState.dragStartX = e.clientX - cropperState.cropX;
+        cropperState.dragStartY = e.clientY - cropperState.cropY;
+      }
+      
+      function drag(e) {
+        if (!cropperState.isDragging) return;
+        
+        const canvas = document.getElementById('cropperCanvas');
+        if (!canvas) return;
+        
+        const rect = canvas.getBoundingClientRect();
+        const newX = e.clientX - rect.left - cropperState.dragStartX;
+        const newY = e.clientY - rect.top - cropperState.dragStartY;
+        
+        // Constrain to canvas bounds
+        cropperState.cropX = Math.max(0, Math.min(newX, canvas.width - cropperState.cropWidth));
+        cropperState.cropY = Math.max(0, Math.min(newY, canvas.height - cropperState.cropHeight));
+        
+        updateCropBox();
+      }
+      
+      function stopDragging() {
+        cropperState.isDragging = false;
+      }
+      
+      function rotateImage(degrees) {
+        cropperState.rotation += degrees;
+        initializeCropper();
+      }
+      
+      function resetCrop() {
+        cropperState.rotation = 0;
+        initializeCropper();
+      }
+      
+      function applyCrop() {
+        const canvas = document.getElementById('cropperCanvas');
+        if (!canvas || !cropperState.image) return;
+        
+        // Create temporary canvas for cropped image
+        const tempCanvas = document.createElement('canvas');
+        const tempCtx = tempCanvas.getContext('2d');
+        
+        // Set cropped size (square for better display)
+        const size = 400;
+        tempCanvas.width = size;
+        tempCanvas.height = size;
+        
+        // Calculate source coordinates
+        const sourceX = (cropperState.cropX / canvas.width) * cropperState.image.width;
+        const sourceY = (cropperState.cropY / canvas.height) * cropperState.image.height;
+        const sourceWidth = (cropperState.cropWidth / canvas.width) * cropperState.image.width;
+        const sourceHeight = (cropperState.cropHeight / canvas.height) * cropperState.image.height;
+        
+        // Draw cropped image
+        tempCtx.drawImage(
+          cropperState.image,
+          sourceX, sourceY, sourceWidth, sourceHeight,
+          0, 0, size, size
+        );
+        
+        // Convert to base64
+        croppedImageData = tempCanvas.toDataURL('image/jpeg', 0.9);
+        
+        // Update preview
+        showImagePreview('Image cadrée', croppedImageData);
+        
+        // Close cropper
+        closeCropper();
+        
+        showToast('Image cadrée avec succès', 'success');
+      }
+      
+      function closeCropper() {
+        const modal = document.getElementById('cropperModal');
+        if (modal) {
+          modal.classList.add('hidden');
+        }
       }
     </script>
   </body>
