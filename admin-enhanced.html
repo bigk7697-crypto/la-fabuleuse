@@ -6,9 +6,10 @@
     <title>Admin Panel - LA FABULEUSE</title>
     
     <!-- Favicon -->
-    <link rel="icon" type="image/svg+xml" href="/favicon-modern.svg" />
-    <link rel="apple-touch-icon" href="/logo-la-fabuleuse-modern.svg" />
-    <link rel="shortcut icon" href="/favicon-modern.svg" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/svg+xml" href="/favicon-16x16.svg" sizes="16x16" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon-new.svg" />
+    <link rel="shortcut icon" href="/favicon.svg" />
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -741,6 +742,22 @@
       const db = firebase.firestore();
       const auth = firebase.auth();
 
+      // Vérification de l'authentification
+      function checkAuthState() {
+        return new Promise((resolve, reject) => {
+          const unsubscribe = auth.onAuthStateChanged((user) => {
+            unsubscribe();
+            if (user) {
+              console.log('✅ Utilisateur authentifié:', user.email);
+              resolve(user);
+            } else {
+              console.error('❌ Utilisateur non authentifié');
+              reject(new Error('Utilisateur non authentifié'));
+            }
+          });
+        });
+      }
+
       // App State
       let currentUser = null;
       let menuItems = [];
@@ -1071,12 +1088,22 @@
       }
 
       function showAddMenuModal() {
+        console.log('🔥 Ouverture du modal d\'ajout de plat');
         currentEditingItem = null;
         document.getElementById('modalTitle').textContent = 'Ajouter un plat';
         document.getElementById('submitBtnText').textContent = 'Ajouter au menu';
         menuForm.reset();
         resetImageUpload();
-        menuModal.classList.remove('hidden');
+        
+        // Afficher le modal
+        const modal = document.querySelector('.modal-overlay');
+        if (modal) {
+          modal.style.display = 'flex';
+          modal.classList.add('animate-fade-in');
+          console.log('✅ Modal affiché');
+        } else {
+          console.error('❌ Modal non trouvé');
+        }
       }
 
       function editMenuItem(itemId) {
@@ -1098,19 +1125,59 @@
             resetImageUpload();
           }
           
-          menuModal.classList.remove('hidden');
+          const modal = document.querySelector('.modal-overlay');
+          if (modal) {
+            modal.style.display = 'flex';
+            modal.classList.add('animate-fade-in');
+          }
         }
       }
 
       function closeMenuModal() {
-        menuModal.classList.add('hidden');
-        menuForm.reset();
+        console.log('🔥 Fermeture du modal');
+        const modal = document.querySelector('.modal-overlay');
+        if (modal) {
+          modal.style.display = 'none';
+          modal.classList.remove('animate-fade-in');
+        }
         currentEditingItem = null;
         resetImageUpload();
       }
 
       async function handleMenuSubmit(e) {
         e.preventDefault();
+        
+        console.log('🔥 Début de la sauvegarde du plat...');
+        
+        try {
+          // Vérifier l'authentification
+          const user = await checkAuthState();
+          console.log('✅ Authentification vérifiée pour:', user.email);
+        } catch (error) {
+          console.error('❌ Erreur d\'authentification:', error.message);
+          showToast('Vous devez être connecté pour ajouter un plat', 'error');
+          return;
+        }
+        
+        // Validation des champs
+        const itemName = document.getElementById('itemName').value.trim();
+        const itemPrice = document.getElementById('itemPrice').value;
+        const itemCategory = document.getElementById('itemCategory').value;
+        
+        if (!itemName) {
+          showToast('Le nom du plat est obligatoire', 'error');
+          return;
+        }
+        
+        if (!itemPrice || parseInt(itemPrice) <= 0) {
+          showToast('Le prix doit être supérieur à 0', 'error');
+          return;
+        }
+        
+        if (!itemCategory) {
+          showToast('La catégorie est obligatoire', 'error');
+          return;
+        }
         
         // Get image data
         let imageData = document.getElementById('itemImage').value.trim();
@@ -1121,22 +1188,34 @@
         }
         
         const menuItem = {
-          name: document.getElementById('itemName').value.trim(),
+          name: itemName,
           description: document.getElementById('itemDescription').value.trim(),
-          price: parseInt(document.getElementById('itemPrice').value),
-          category: document.getElementById('itemCategory').value,
+          price: parseInt(itemPrice),
+          category: itemCategory,
           image: imageData,
           available: document.getElementById('itemAvailable').checked,
-          updatedAt: new Date()
+          updatedAt: new Date(),
+          updatedBy: auth.currentUser?.email || 'unknown'
         };
         
+        console.log('🔥 Données du plat à sauvegarder:', menuItem);
+        
         try {
+          // Test de connexion Firestore
+          console.log('🔥 Test connexion Firestore pour le menu...');
+          const testDoc = await db.collection('menu').limit(1).get();
+          console.log('🔥 Connexion Firestore OK, documents trouvés:', !testDoc.empty);
+          
           if (currentEditingItem) {
+            console.log('🔥 Mise à jour du plat:', currentEditingItem.id);
             await db.collection('menu').doc(currentEditingItem.id).update(menuItem);
             showToast('Plat mis à jour avec succès', 'success');
           } else {
+            console.log('🔥 Création d\'un nouveau plat');
             menuItem.createdAt = new Date();
-            await db.collection('menu').add(menuItem);
+            menuItem.createdBy = auth.currentUser?.email || 'unknown';
+            const docRef = await db.collection('menu').add(menuItem);
+            console.log('✅ Plat ajouté avec ID:', docRef.id);
             showToast('Plat ajouté avec succès', 'success');
           }
           
@@ -1144,8 +1223,26 @@
           loadMenuItems();
           
         } catch (error) {
-          console.error('Error saving menu item:', error);
-          showToast('Erreur lors de la sauvegarde', 'error');
+          console.error('❌ Erreur détaillée sauvegarde plat:', error);
+          console.error('❌ Code erreur:', error.code);
+          console.error('❌ Message erreur:', error.message);
+          
+          // Message d'erreur spécifique
+          let errorMessage = 'Erreur lors de la sauvegarde du plat';
+          
+          if (error.code === 'permission-denied') {
+            errorMessage = 'Permission refusée - Vérifiez que vous êtes bien connecté';
+          } else if (error.code === 'unavailable') {
+            errorMessage = 'Service Firebase indisponible - Réessayez plus tard';
+          } else if (error.code === 'deadline-exceeded') {
+            errorMessage = 'Délai d\'attente dépassé - Réessayez';
+          } else if (error.message && error.message.includes('network')) {
+            errorMessage = 'Erreur réseau - Vérifiez votre connexion';
+          } else if (error.message && error.message.includes('auth')) {
+            errorMessage = 'Erreur d\'authentification - Reconnectez-vous';
+          }
+          
+          showToast(errorMessage, 'error');
         }
       }
 
@@ -1254,12 +1351,23 @@
       async function handleRestaurantSettings(e) {
         e.preventDefault();
         
+        try {
+          // Vérifier l'authentification
+          const user = await checkAuthState();
+          console.log('✅ Authentification vérifiée pour:', user.email);
+        } catch (error) {
+          console.error('❌ Erreur d\'authentification:', error.message);
+          showToast('Vous devez être connecté pour modifier les paramètres', 'error');
+          return;
+        }
+        
         const restaurantSettings = {
           restaurantName: document.getElementById('restaurantName').value,
           restaurantEmail: document.getElementById('restaurantEmail').value,
           restaurantPhone: document.getElementById('restaurantPhone').value,
           restaurantAddress: document.getElementById('restaurantAddress').value,
-          updatedAt: new Date()
+          updatedAt: new Date(),
+          updatedBy: auth.currentUser?.email || 'unknown'
         };
         
         try {
@@ -1285,13 +1393,15 @@
           let errorMessage = 'Erreur lors de la sauvegarde';
           
           if (error.code === 'permission-denied') {
-            errorMessage = 'Permission refusée - Vérifiez les règles Firestore';
+            errorMessage = 'Permission refusée - Vérifiez que vous êtes bien connecté';
           } else if (error.code === 'unavailable') {
             errorMessage = 'Service Firebase indisponible - Réessayez plus tard';
           } else if (error.code === 'deadline-exceeded') {
             errorMessage = 'Délai d\'attente dépassé - Réessayez';
           } else if (error.message && error.message.includes('network')) {
             errorMessage = 'Erreur réseau - Vérifiez votre connexion';
+          } else if (error.message && error.message.includes('auth')) {
+            errorMessage = 'Erreur d\'authentification - Reconnectez-vous';
           }
           
           showToast(errorMessage, 'error');
@@ -1301,11 +1411,22 @@
       async function handleSocialMediaSettings(e) {
         e.preventDefault();
         
+        try {
+          // Vérifier l'authentification
+          const user = await checkAuthState();
+          console.log('✅ Authentification vérifiée pour:', user.email);
+        } catch (error) {
+          console.error('❌ Erreur d\'authentification:', error.message);
+          showToast('Vous devez être connecté pour modifier les paramètres', 'error');
+          return;
+        }
+        
         const socialSettings = {
           facebookUrl: document.getElementById('facebookUrl').value,
           instagramUrl: document.getElementById('instagramUrl').value,
           whatsappNumber: document.getElementById('whatsappNumber').value,
-          updatedAt: new Date()
+          updatedAt: new Date(),
+          updatedBy: auth.currentUser?.email || 'unknown'
         };
         
         try {
@@ -1331,13 +1452,15 @@
           let errorMessage = 'Erreur lors de la sauvegarde';
           
           if (error.code === 'permission-denied') {
-            errorMessage = 'Permission refusée - Vérifiez les règles Firestore';
+            errorMessage = 'Permission refusée - Vérifiez que vous êtes bien connecté';
           } else if (error.code === 'unavailable') {
             errorMessage = 'Service Firebase indisponible - Réessayez plus tard';
           } else if (error.code === 'deadline-exceeded') {
             errorMessage = 'Délai d\'attente dépassé - Réessayez';
           } else if (error.message && error.message.includes('network')) {
             errorMessage = 'Erreur réseau - Vérifiez votre connexion';
+          } else if (error.message && error.message.includes('auth')) {
+            errorMessage = 'Erreur d\'authentification - Reconnectez-vous';
           }
           
           showToast(errorMessage, 'error');

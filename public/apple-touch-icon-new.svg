@@ -1,0 +1,37 @@
+<svg width="180" height="180" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="fabGradientLarge" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#d4af37;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#f4e4bc;stop-opacity:1" />
+    </linearGradient>
+    <radialGradient id="bgGradient">
+      <stop offset="0%" style="stop-color:#1a1a1a;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#0a0a0a;stop-opacity:1" />
+    </radialGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="180" height="180" rx="40" fill="url(#bgGradient)"/>
+  <rect width="180" height="180" rx="40" fill="none" stroke="url(#fabGradientLarge)" stroke-width="4"/>
+  
+  <!-- Central plate -->
+  <circle cx="90" cy="90" r="45" fill="none" stroke="url(#fabGradientLarge)" stroke-width="3"/>
+  <ellipse cx="90" cy="90" rx="35" ry="25" fill="url(#fabGradientLarge)" opacity="0.9"/>
+  
+  <!-- Decorative elements -->
+  <circle cx="90" cy="90" r="8" fill="url(#fabGradientLarge)"/>
+  
+  <!-- Fork and knife -->
+  <g transform="translate(55, 70)">
+    <path d="M0 10 L0 40 M0 10 Q-8 10 -8 20 Q-8 30 0 30" stroke="url(#fabGradientLarge)" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    <path d="M3 10 L3 15 M3 10 Q-5 10 -5 20 Q-5 30 3 30" stroke="url(#fabGradientLarge)" stroke-width="2" fill="none" stroke-linecap="round"/>
+  </g>
+  
+  <g transform="translate(125, 70)">
+    <path d="M0 10 L0 40 M0 10 Q8 10 8 20 Q8 30 0 30" stroke="url(#fabGradientLarge)" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    <path d="M-3 10 L-3 15 M-3 10 Q5 10 5 20 Q5 30 -3 30" stroke="url(#fabGradientLarge)" stroke-width="2" fill="none" stroke-linecap="round"/>
+  </g>
+  
+  <!-- Restaurant name -->
+  <text x="90" y="145" font-family="Georgia, serif" font-size="14" font-weight="bold" fill="url(#fabGradientLarge)" text-anchor="middle">LA FABULEUSE</text>
+</svg>
