@@ -1,13 +1,40 @@
 {
   "name": "la-fabuleuse-tg",
   "version": "1.0.0",
-  "description": "LA FABULEUSE - Bar Restaurant Café",
+  "description": "LA FABULEUSE - Bar Restaurant Café à Lomé, Togo",
   "main": "index.html",
   "scripts": {
-    "build": "sh build-enhanced.sh",
-    "start": "echo '🍽️ LA FABULEUSE - Site Ready!' && echo '📱 Open index.html in your browser'"
+    "start": "python -m http.server 3000",
+    "dev": "python -m http.server 3000",
+    "build": "echo 'Static site - no build needed'",
+    "preview": "python -m http.server 3000",
+    "deploy": "echo 'Deploy to Netlify'"
   },
-  "keywords": ["restaurant", "bar", "cafe", "lome", "togo", "cuisine"],
+  "keywords": [
+    "restaurant",
+    "bar",
+    "cafe",
+    "lome",
+    "togo",
+    "firebase",
+    "static-site",
+    "responsive",
+    "admin-panel"
+  ],
   "author": "LA FABULEUSE",
-  "license": "MIT"
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bigk7697-crypto/la-fabuleuse.git"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {},
+  "devDependencies": {},
+  "browserslist": [
+    "> 1%",
+    "last 2 versions",
+    "not dead"
+  ]
 }

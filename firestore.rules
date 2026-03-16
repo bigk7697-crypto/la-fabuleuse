@@ -1,31 +1,33 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Rules for menu collection - anyone can read, authenticated users can write
+    // Menu collection - anyone can read, authenticated users can write
     match /menu/{menuId} {
       allow read: if true;
-      allow write: if request.auth != null;
-      allow create: if request.auth != null;
-      allow update: if request.auth != null;
-      allow delete: if request.auth != null;
+      allow create: if request.auth != null && request.auth.token.email == 'admin@lafabuleuse.tg';
+      allow update: if request.auth != null && request.auth.token.email == 'admin@lafabuleuse.tg';
+      allow delete: if request.auth != null && request.auth.token.email == 'admin@lafabuleuse.tg';
     }
     
-    // Rules for orders collection - only authenticated users
+    // Orders collection - only authenticated users
     match /orders/{orderId} {
       allow read: if request.auth != null;
-      allow write: if request.auth != null;
       allow create: if request.auth != null;
       allow update: if request.auth != null;
       allow delete: if request.auth != null;
     }
     
-    // Rules for settings collection - anyone can read, authenticated users can write
+    // Settings collection - anyone can read, only admin can write
     match /settings/{settingsId} {
       allow read: if true;
-      allow write: if request.auth != null;
-      allow create: if request.auth != null;
-      allow update: if request.auth != null;
-      allow delete: if request.auth != null;
+      allow create: if request.auth != null && request.auth.token.email == 'admin@lafabuleuse.tg';
+      allow update: if request.auth != null && request.auth.token.email == 'admin@lafabuleuse.tg';
+      allow delete: if request.auth != null && request.auth.token.email == 'admin@lafabuleuse.tg';
+    }
+    
+    // Users collection - only authenticated users can read/write their own data
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
     }
   }
 }
