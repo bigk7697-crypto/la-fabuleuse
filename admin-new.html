@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Admin - LA FABULEUSE</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="apple-touch-icon" href="/apple-touch-icon-new.svg">
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
+    
+    <style>
+        * { box-sizing: border-box; }
+        body { 
+            margin: 0; 
+            padding: 0; 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0a0a0a; 
+            color: white;
+            overflow-x: hidden;
+            touch-action: pan-y;
+        }
+        
+        .admin-container {
+            display: flex;
+            min-height: 100vh;
+        }
+        
+        .sidebar {
+            width: 280px;
+            background: #1a1a1a;
+            border-right: 1px solid #333;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .logo {
+            width: 60px;
+            height: 60px;
+            background: #d4af37;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: bold;
+            color: #0a0a0a;
+            margin-bottom: 24px;
+        }
+        
+        .nav-btn {
+            width: 100%;
+            padding: 16px;
+            background: transparent;
+            color: #999;
+            border: none;
+            border-radius: 12px;
+            text-align: left;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 16px;
+            margin-bottom: 8px;
+        }
+        
+        .nav-btn:hover, .nav-btn.active {
+            background: #d4af37;
+            color: #0a0a0a;
+        }
+        
+        .main-content {
+            flex: 1;
+            padding: 32px;
+            overflow-y: auto;
+        }
+        
+        .section {
+            display: none;
+        }
+        
+        .section.active {
+            display: block;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            background: #d4af37;
+            color: #0a0a0a;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal.active {
+            display: flex;
+        }
+        
+        .modal-content {
+            background: #1a1a1a;
+            border-radius: 16px;
+            padding: 32px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        
+        .form-group {
+            margin-bottom: 24px;
+        }
+        
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            color: #d4af37;
+            font-weight: 600;
+        }
+        
+        .form-input {
+            width: 100%;
+            padding: 12px;
+            background: #0a0a0a;
+            border: 1px solid #333;
+            border-radius: 8px;
+            color: white;
+            font-size: 16px;
+        }
+        
+        .form-input:focus {
+            outline: none;
+            border-color: #d4af37;
+        }
+        
+        .image-upload {
+            border: 2px dashed #333;
+            border-radius: 12px;
+            padding: 32px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 16px;
+        }
+        
+        .image-upload:hover {
+            border-color: #d4af37;
+        }
+        
+        .image-upload.has-image {
+            border-color: #d4af37;
+            padding: 0;
+            height: 200px;
+            position: relative;
+        }
+        
+        .image-preview {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 10px;
+        }
+        
+        .menu-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 24px;
+            margin-top: 32px;
+        }
+        
+        .menu-item-card {
+            background: #1a1a1a;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid #333;
+        }
+        
+        .menu-item-image {
+            width: 100%;
+            height: 180px;
+            object-fit: cover;
+            background: #2a2a2a;
+        }
+        
+        .menu-item-content {
+            padding: 16px;
+        }
+        
+        .menu-item-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+        
+        .btn-small {
+            padding: 8px 16px;
+            font-size: 14px;
+        }
+        
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 16px 24px;
+            background: #28a745;
+            color: white;
+            border-radius: 8px;
+            z-index: 2000;
+            display: none;
+        }
+        
+        .toast.error {
+            background: #dc3545;
+        }
+        
+        @media (max-width: 768px) {
+            .admin-container {
+                flex-direction: column;
+            }
+            
+            .sidebar {
+                width: 100%;
+                padding: 16px;
+            }
+            
+            .main-content {
+                padding: 16px;
+            }
+            
+            .menu-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <!-- Loading -->
+        <div id="loading" style="display: flex; align-items: center; justify-content: center; min-height: 100vh;">
+            <div style="width: 40px; height: 40px; border: 4px solid #d4af37; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+        </div>
+
+        <!-- Main App -->
+        <div id="mainApp" class="admin-container" style="display: none;">
+            <!-- Sidebar -->
+            <aside class="sidebar">
+                <div class="logo">LF</div>
+                <h2 style="margin-bottom: 32px; font-size: 1.5rem;">ADMIN PANEL</h2>
+                
+                <nav>
+                    <button class="nav-btn active" onclick="showSection('menu')">🍽️ Menu</button>
+                    <button class="nav-btn" onclick="showSection('settings')">⚙️ Paramètres</button>
+                    <button class="nav-btn" onclick="logout()" style="margin-top: auto; color: #dc3545;">🚪 Déconnexion</button>
+                </nav>
+            </aside>
+
+            <!-- Main Content -->
+            <main class="main-content">
+                <!-- Menu Section -->
+                <section id="menuSection" class="section active">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px;">
+                        <h1 style="font-size: 2.5rem; margin: 0;">Gestion du Menu</h1>
+                        <button class="btn" onclick="openAddModal()">➕ Ajouter un plat</button>
+                    </div>
+
+                    <div class="menu-grid" id="menuGrid">
+                        <!-- Menu items will be loaded here -->
+                    </div>
+                </section>
+
+                <!-- Settings Section -->
+                <section id="settingsSection" class="section">
+                    <h1 style="font-size: 2.5rem; margin-bottom: 32px;">Paramètres du Restaurant</h1>
+                    
+                    <form onsubmit="saveSettings(event)" style="max-width: 600px;">
+                        <div class="form-group">
+                            <label class="form-label">Numéro WhatsApp</label>
+                            <input type="tel" id="whatsappNumber" class="form-input" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Adresse</label>
+                            <input type="text" id="address" class="form-input" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Facebook URL</label>
+                            <input type="url" id="facebookUrl" class="form-input">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Instagram URL</label>
+                            <input type="url" id="instagramUrl" class="form-input">
+                        </div>
+                        
+                        <button type="submit" class="btn">💾 Sauvegarder</button>
+                    </form>
+                </section>
+            </main>
+        </div>
+
+        <!-- Add/Edit Modal -->
+        <div id="itemModal" class="modal">
+            <div class="modal-content">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+                    <h2 id="modalTitle" style="margin: 0;">Ajouter un plat</h2>
+                    <button onclick="closeModal()" style="background: none; border: none; color: white; font-size: 24px; cursor: pointer;">×</button>
+                </div>
+
+                <form onsubmit="saveMenuItem(event)">
+                    <input type="hidden" id="itemId">
+                    
+                    <div class="form-group">
+                        <label class="form-label">Nom du plat *</label>
+                        <input type="text" id="itemName" class="form-input" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Description *</label>
+                        <textarea id="itemDescription" class="form-input" rows="3" required></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Prix (FCFA) *</label>
+                        <input type="number" id="itemPrice" class="form-input" min="0" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Catégorie *</label>
+                        <select id="itemCategory" class="form-input" required>
+                            <option value="restaurant">Restaurant</option>
+                            <option value="bar">Bar</option>
+                            <option value="cafe">Café</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Image *</label>
+                        <div class="image-upload" id="imageUpload" onclick="document.getElementById('imageInput').click()">
+                            <input type="file" id="imageInput" accept="image/*" style="display: none;" onchange="handleImageUpload(event)">
+                            <div id="uploadText">
+                                <div style="font-size: 48px; margin-bottom: 16px;">📷</div>
+                                <div>Cliquez pour uploader une image</div>
+                                <div style="font-size: 14px; color: #999; margin-top: 8px;">PNG, JPG jusqu'à 5MB</div>
+                            </div>
+                        </div>
+                        <input type="hidden" id="itemImage" required>
+                    </div>
+                    
+                    <div style="display: flex; gap: 12px;">
+                        <button type="submit" class="btn" style="flex: 1;">💾 Sauvegarder</button>
+                        <button type="button" onclick="closeModal()" class="btn btn-secondary" style="flex: 1;">Annuler</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Toast -->
+        <div id="toast" class="toast"></div>
+    </div>
+
+    <style>
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+
+    <script>
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyDRkDvEANAlnR6mIy5873IW9JjWoC4G7Kk",
+            authDomain: "la-fabuleuse-tg-669c0.firebaseapp.com",
+            projectId: "la-fabuleuse-tg-669c0",
+            storageBucket: "la-fabuleuse-tg-669c0.firebasestorage.app",
+            messagingSenderId: "190970983644",
+            appId: "1:190970983644:web:1999ec77d9d7f09063b019"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const auth = firebase.auth();
+        const storage = firebase.storage();
+
+        let currentUser = null;
+        let menuItems = [];
+        let currentEditingItem = null;
+        let uploadedImageFile = null;
+
+        // Initialize App
+        document.addEventListener('DOMContentLoaded', function() {
+            initApp();
+        });
+
+        function initApp() {
+            auth.onAuthStateChanged(function(user) {
+                if (user) {
+                    currentUser = user;
+                    showMainApp();
+                    loadData();
+                } else {
+                    window.location.href = '/login.html';
+                }
+            });
+        }
+
+        function showMainApp() {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('mainApp').style.display = 'flex';
+        }
+
+        function loadData() {
+            loadMenuItems();
+            loadSettings();
+        }
+
+        function loadMenuItems() {
+            db.collection('menu').onSnapshot(function(snapshot) {
+                menuItems = [];
+                snapshot.forEach(function(doc) {
+                    menuItems.push({ id: doc.id, ...doc.data() });
+                });
+                renderMenuItems();
+            });
+        }
+
+        function renderMenuItems() {
+            const container = document.getElementById('menuGrid');
+            
+            if (menuItems.length === 0) {
+                container.innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: #999; padding: 48px;">Aucun plat dans le menu</div>';
+                return;
+            }
+
+            container.innerHTML = menuItems.map(item => `
+                <div class="menu-item-card">
+                    <img src="${item.image}" alt="${item.name}" class="menu-item-image" onerror="this.src='https://via.placeholder.com/300x180/2a2a2a/999?text=Image'">
+                    <div class="menu-item-content">
+                        <h3 style="margin: 0 0 8px 0;">${item.name}</h3>
+                        <p style="color: #999; margin: 0 0 12px 0;">${item.description}</p>
+                        <p style="font-size: 1.3rem; font-weight: bold; color: #d4af37; margin: 0 0 12px 0;">${item.price} FCFA</p>
+                        <div class="menu-item-actions">
+                            <button class="btn btn-small" onclick="editItem('${item.id}')">✏️ Modifier</button>
+                            <button class="btn btn-small btn-danger" onclick="deleteItem('${item.id}')">🗑️ Supprimer</button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function loadSettings() {
+            db.collection('settings').doc('general').get().then(function(doc) {
+                if (doc.exists) {
+                    const settings = doc.data();
+                    document.getElementById('whatsappNumber').value = settings.whatsappNumber || '';
+                    document.getElementById('address').value = settings.address || '';
+                    document.getElementById('facebookUrl').value = settings.facebookUrl || '';
+                    document.getElementById('instagramUrl').value = settings.instagramUrl || '';
+                }
+            });
+        }
+
+        function showSection(section) {
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            
+            document.getElementById(section + 'Section').classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        function openAddModal() {
+            currentEditingItem = null;
+            document.getElementById('modalTitle').textContent = 'Ajouter un plat';
+            document.getElementById('itemId').value = '';
+            document.getElementById('itemName').value = '';
+            document.getElementById('itemDescription').value = '';
+            document.getElementById('itemPrice').value = '';
+            document.getElementById('itemCategory').value = 'restaurant';
+            document.getElementById('itemImage').value = '';
+            
+            resetImageUpload();
+            document.getElementById('itemModal').classList.add('active');
+        }
+
+        function editItem(id) {
+            const item = menuItems.find(i => i.id === id);
+            if (item) {
+                currentEditingItem = item;
+                document.getElementById('modalTitle').textContent = 'Modifier le plat';
+                document.getElementById('itemId').value = item.id;
+                document.getElementById('itemName').value = item.name;
+                document.getElementById('itemDescription').value = item.description;
+                document.getElementById('itemPrice').value = item.price;
+                document.getElementById('itemCategory').value = item.category;
+                document.getElementById('itemImage').value = item.image;
+                
+                showImagePreview(item.image);
+                document.getElementById('itemModal').classList.add('active');
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('itemModal').classList.remove('active');
+            resetImageUpload();
+        }
+
+        function handleImageUpload(event) {
+            const file = event.target.files[0];
+            if (file) {
+                if (file.size > 5 * 1024 * 1024) {
+                    showToast('Image trop grande (max 5MB)', 'error');
+                    return;
+                }
+                
+                uploadedImageFile = file;
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    showImagePreview(e.target.result);
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function showImagePreview(imageSrc) {
+            const uploadDiv = document.getElementById('imageUpload');
+            uploadDiv.classList.add('has-image');
+            uploadDiv.innerHTML = `
+                <img src="${imageSrc}" class="image-preview" alt="Preview">
+                <div style="position: absolute; top: 8px; right: 8px;">
+                    <button type="button" onclick="removeImage()" style="background: rgba(0,0,0,0.8); color: white; border: none; border-radius: 50%; width: 32px; height: 32px; cursor: pointer;">×</button>
+                </div>
+            `;
+            document.getElementById('itemImage').value = imageSrc;
+        }
+
+        function removeImage() {
+            resetImageUpload();
+            document.getElementById('imageInput').value = '';
+        }
+
+        function resetImageUpload() {
+            const uploadDiv = document.getElementById('imageUpload');
+            uploadDiv.classList.remove('has-image');
+            uploadDiv.innerHTML = `
+                <input type="file" id="imageInput" accept="image/*" style="display: none;" onchange="handleImageUpload(event)">
+                <div id="uploadText">
+                    <div style="font-size: 48px; margin-bottom: 16px;">📷</div>
+                    <div>Cliquez pour uploader une image</div>
+                    <div style="font-size: 14px; color: #999; margin-top: 8px;">PNG, JPG jusqu'à 5MB</div>
+                </div>
+            `;
+            document.getElementById('itemImage').value = '';
+            uploadedImageFile = null;
+        }
+
+        async function saveMenuItem(event) {
+            event.preventDefault();
+            
+            const itemData = {
+                name: document.getElementById('itemName').value.trim(),
+                description: document.getElementById('itemDescription').value.trim(),
+                price: parseInt(document.getElementById('itemPrice').value),
+                category: document.getElementById('itemCategory').value,
+                image: document.getElementById('itemImage').value,
+                available: true,
+                updatedAt: new Date()
+            };
+
+            try {
+                if (currentEditingItem) {
+                    await db.collection('menu').doc(currentEditingItem.id).update(itemData);
+                    showToast('Plat mis à jour avec succès');
+                } else {
+                    itemData.createdAt = new Date();
+                    await db.collection('menu').add(itemData);
+                    showToast('Plat ajouté avec succès');
+                }
+                closeModal();
+            } catch (error) {
+                console.error('Error saving item:', error);
+                showToast('Erreur lors de la sauvegarde', 'error');
+            }
+        }
+
+        async function deleteItem(id) {
+            if (confirm('Êtes-vous sûr de vouloir supprimer ce plat ?')) {
+                try {
+                    await db.collection('menu').doc(id).delete();
+                    showToast('Plat supprimé avec succès');
+                } catch (error) {
+                    showToast('Erreur lors de la suppression', 'error');
+                }
+            }
+        }
+
+        async function saveSettings(event) {
+            event.preventDefault();
+            
+            const settingsData = {
+                whatsappNumber: document.getElementById('whatsappNumber').value,
+                address: document.getElementById('address').value,
+                facebookUrl: document.getElementById('facebookUrl').value,
+                instagramUrl: document.getElementById('instagramUrl').value,
+                updatedAt: new Date()
+            };
+
+            try {
+                await db.collection('settings').doc('general').set(settingsData, { merge: true });
+                showToast('Paramètres sauvegardés avec succès');
+            } catch (error) {
+                showToast('Erreur lors de la sauvegarde', 'error');
+            }
+        }
+
+        async function logout() {
+            try {
+                await auth.signOut();
+                window.location.href = '/login.html';
+            } catch (error) {
+                showToast('Erreur lors de la déconnexion', 'error');
+            }
+        }
+
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = 'toast';
+            if (type === 'error') {
+                toast.classList.add('error');
+            }
+            toast.style.display = 'block';
+            
+            setTimeout(() => {
+                toast.style.display = 'none';
+            }, 3000);
+        }
+    </script>
+</body>
+</html>

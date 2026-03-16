@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>LA FABULEUSE – Bar Restaurant Café</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="apple-touch-icon" href="/apple-touch-icon-new.svg">
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    
+    <style>
+        * { box-sizing: border-box; }
+        body { 
+            margin: 0; 
+            padding: 0; 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0a0a0a; 
+            color: white;
+            overflow-x: hidden;
+            touch-action: pan-y;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%);
+        }
+        
+        .logo {
+            width: 120px;
+            height: 120px;
+            background: #d4af37;
+            border-radius: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 48px;
+            font-weight: bold;
+            color: #0a0a0a;
+            margin: 0 auto 32px;
+            box-shadow: 0 20px 40px rgba(212, 175, 55, 0.3);
+        }
+        
+        h1 {
+            font-size: clamp(2.5rem, 8vw, 5rem);
+            font-weight: 900;
+            margin: 0 0 16px;
+            background: linear-gradient(135deg, #d4af37, #f4e4bc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .btn {
+            display: inline-block;
+            padding: 16px 32px;
+            background: #d4af37;
+            color: #0a0a0a;
+            text-decoration: none;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 18px;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+            margin: 8px;
+        }
+        
+        .menu-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 32px;
+            margin: 64px 0;
+        }
+        
+        .menu-item {
+            background: #1a1a1a;
+            border-radius: 16px;
+            overflow: hidden;
+            transition: transform 0.3s ease;
+            border: 1px solid #333;
+        }
+        
+        .menu-item:hover {
+            transform: translateY(-8px);
+        }
+        
+        .menu-item-image {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            background: #2a2a2a;
+        }
+        
+        .menu-item-content {
+            padding: 24px;
+        }
+        
+        .menu-item-price {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: #d4af37;
+        }
+        
+        .admin-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 60px;
+            height: 60px;
+            background: #d4af37;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            color: #0a0a0a;
+            font-weight: bold;
+            z-index: 1000;
+        }
+        
+        @media (max-width: 768px) {
+            .container { padding: 0 16px; }
+            .admin-btn { width: 50px; height: 50px; }
+        }
+    </style>
+</head>
+<body>
+    <section class="hero">
+        <div class="container">
+            <div style="text-align: center;">
+                <div class="logo">LF</div>
+                <h1>LA FABULEUSE</h1>
+                <p style="font-size: 1.2rem; color: #999; margin-bottom: 48px;">Bar • Restaurant • Café</p>
+                <div>
+                    <a href="#menu" class="btn">Voir le Menu</a>
+                    <a href="#contact" class="btn">Nous Contacter</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="menu" style="padding: 80px 0;">
+        <div class="container">
+            <h2 style="text-align: center; font-size: 3rem; color: #d4af37; margin-bottom: 64px;">Notre Menu</h2>
+            <div class="menu-grid" id="menuGrid"></div>
+        </div>
+    </section>
+
+    <a href="/admin.html" class="admin-btn">A</a>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyDRkDvEANAlnR6mIy5873IW9JjWoC4G7Kk",
+            authDomain: "la-fabuleuse-tg-669c0.firebaseapp.com",
+            projectId: "la-fabuleuse-tg-669c0",
+            storageBucket: "la-fabuleuse-tg-669c0.firebasestorage.app",
+            messagingSenderId: "190970983644",
+            appId: "1:190970983644:web:1999ec77d9d7f09063b019"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        function loadMenuItems() {
+            db.collection('menu').get().then(snapshot => {
+                const menuGrid = document.getElementById('menuGrid');
+                menuGrid.innerHTML = '';
+                
+                snapshot.forEach(doc => {
+                    const item = doc.data();
+                    const menuItem = document.createElement('div');
+                    menuItem.className = 'menu-item';
+                    menuItem.innerHTML = `
+                        <img src="${item.image || 'https://via.placeholder.com/400x200'}" 
+                             alt="${item.name}" 
+                             class="menu-item-image"
+                             onerror="this.src='https://via.placeholder.com/400x200/2a2a2a/999?text=Image'">
+                        <div class="menu-item-content">
+                            <h3 style="font-size: 1.3rem; margin-bottom: 8px;">${item.name}</h3>
+                            <p style="color: #999; margin-bottom: 16px;">${item.description}</p>
+                            <p class="menu-item-price">${item.price} FCFA</p>
+                        </div>
+                    `;
+                    menuGrid.appendChild(menuItem);
+                });
+            });
+        }
+
+        loadMenuItems();
+    </script>
+</body>
+</html>
